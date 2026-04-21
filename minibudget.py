@@ -1,22 +1,23 @@
 """
-mini-budget V1 
+mini-budget V2 
 Ogrenci: Deniz Yücel Uzunay (251478081)
 
---- V1 GÖREV LİSTESİ (TASKS) ---
-1. Görev 1: `list` komutunu `while` döngüsü kullanarak implemente et.
-2. Görev 2: SPEC dosyasına eklenen "Negatif tutar girilemez" kuralını `add` komutuna ekle.
-3. Görev 3: Projeye README.md dosyası ekleyerek V0 -> V1 farkını açıkla.
-4. BONUS: Yapay zeka ile `balance` komutunu implemente et.
+--- V2 GÖREV LİSTESİ (TASKS) ---
+1. Görev 1: `balance` komutunu kalici olarak projeye entegre et.
+2. Görev 2: SPEC dosyasina eklenen `delete` komutunu, girilen ID'yi bularak satiri silecek sekilde kodla.
+3. Görev 3: Dosya okuma/yazma islemlerini guvenli hale getirmek icin hata mesajlarini duzenle.
 --------------------------------
 """
 import sys
 import os
 
+DB_FILE = ".minibudget/transactions.dat"
+
 def initialize():
     if os.path.exists(".minibudget"):
         return "Already initialized"
     os.mkdir(".minibudget")
-    f = open(".minibudget/transactions.dat", "w")
+    f = open(DB_FILE, "w")
     f.close()
     return "Initialized empty minibudget in .minibudget/"
 
@@ -26,64 +27,77 @@ def add_transaction(t_type, amount, description):
     if int(amount) < 0:
         return "Error: Amount must be positive."
     
-    f = open(".minibudget/transactions.dat", "r")
+    f = open(DB_FILE, "r")
     content = f.read()
     f.close()
     
     transaction_id = content.count("\n") + 1
     
-    f = open(".minibudget/transactions.dat", "a")
-    record = str(transaction_id) + "|" + t_type + "|" + str(amount) + "|" + description + "|2026-03-16\n"
+    f = open(DB_FILE, "a")
+    record = str(transaction_id) + "|" + t_type + "|" + str(amount) + "|" + description + "|2026-04-21\n"
     f.write(record)
     f.close()
     return "Added transaction #" + str(transaction_id) + ": " + t_type + " " + str(amount)
 
 def list_transactions():
-    if not os.path.exists(".minibudget/transactions.dat"):
-        return "Not initialized. Run: python minibudget.py init"
+    if not os.path.exists(DB_FILE):
+        return "Not initialized."
     
-    f = open(".minibudget/transactions.dat", "r")
-    first_char = f.read(1)
-    if not first_char:
-        f.close()
+    f = open(DB_FILE, "r")
+    content = f.read()
+    f.close()
+    
+    if not content:
         return "No transactions found."
     
-    f.seek(0)
-    result = ""
-    line = f.readline()
-    while line != "":
-        clean_line = line.replace("|", " - ")
-        result = result + clean_line
-        line = f.readline()
-        
-    f.close()
-    return result.strip()
+    return content.replace("|", " - ").strip()
 
 def calculate_balance():
-    """Yapay Zeka (Gemini) tarafindan uretilen bakiye hesaplama fonksiyonu."""
-    if not os.path.exists(".minibudget/transactions.dat"):
-        return "Not initialized. Run: python minibudget.py init"
+    if not os.path.exists(DB_FILE):
+        return "Not initialized."
     
-    f = open(".minibudget/transactions.dat", "r")
+    f = open(DB_FILE, "r")
     total_balance = 0
     line = f.readline()
     
     while line != "":
         if "INCOME" in line:
             parts = line.split("|") 
-            amount = int(parts[2])
-            total_balance = total_balance + amount
+            total_balance += int(parts[2])
         elif "EXPENSE" in line:
             parts = line.split("|")
-            amount = int(parts[2])
-            total_balance = total_balance - amount
+            total_balance -= int(parts[2])
         line = f.readline()
         
     f.close()
     return "Current Balance: " + str(total_balance)
 
-def show_not_implemented(command_name):
-    return "Command '" + command_name + "' will be implemented in future weeks."
+def delete_transaction(target_id):
+    if not os.path.exists(DB_FILE):
+        return "Not initialized."
+    
+    f = open(DB_FILE, "r")
+    lines = f.readlines()
+    f.close()
+    
+    new_lines = []
+    deleted = False
+    
+    for line in lines:
+        if line.startswith(target_id + "|"):
+            deleted = True
+        else:
+            new_lines.append(line)
+            
+    if not deleted:
+        return "Error: Transaction not found."
+        
+    f = open(DB_FILE, "w")
+    for line in new_lines:
+        f.write(line)
+    f.close()
+    
+    return "Transaction #" + target_id + " deleted successfully."
 
 # --- Ana Program ---
 if len(sys.argv) < 2:
@@ -98,9 +112,11 @@ elif sys.argv[1] == "add":
 elif sys.argv[1] == "list":
     print(list_transactions())
 elif sys.argv[1] == "balance":
-    # Yapay zekanin yazdigi fonksiyonu buraya bagladik!
     print(calculate_balance())
 elif sys.argv[1] == "delete":
-    print(show_not_implemented("delete"))
+    if len(sys.argv) < 3:
+        print("Usage: python minibudget.py delete <id>")
+    else:
+        print(delete_transaction(sys.argv[2]))
 else:
     print("Unknown command: " + sys.argv[1])
